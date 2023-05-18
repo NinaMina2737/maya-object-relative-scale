@@ -1,0 +1,2 @@
+# maya-object-relative-scale
+ 
