@@ -5,48 +5,49 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 import maya.cmds as cmds
 
-def calc_length(a, b):
-    return abs(a - b)
 
-def manage_scale_value(manage_type, axis, obj, set_value=1.00):
-    if manage_type == 'g' or manage_type == 'get':
-        if axis == 'x':
-            return cmds.getAttr('{}.scaleX'.format(obj))
-        elif axis == 'y':
-            return cmds.getAttr('{}.scaleY'.format(obj))
-        elif axis == 'z':
-            return cmds.getAttr('{}.scaleZ'.format(obj))
-        else:
-            return False
-    elif manage_type == 's' or manage_type == 'set':
-        if axis == 'x':
-            cmds.setAttr('{}.scaleX'.format(obj), set_value)
-        elif axis == 'y':
-            cmds.setAttr('{}.scaleY'.format(obj), set_value)
-        elif axis == 'z':
-            cmds.setAttr('{}.scaleZ'.format(obj), set_value)
-        else:
-            return False
+def freeze_scale():
+    objects = cmds.ls(selection=True, long=True)
+    for object in objects:
+        cmds.makeIdentity(object, apply=True, scale=True)
+        print('Freeze "scale" of "{0}".'.format(object.lstrip('|')))
 
-def ratio_check(base, x, y, z):
-    base_value = 0
-    if base == 'x':
-        base_value = x
-    elif base == 'y':
-        base_value = y
-    elif base == 'z':
-        base_value = z
-    else:
-        return False
-    X = x / base_value
-    Y = y / base_value
-    Z = z / base_value
-    ratio = [X, Y, Z]
-    return ratio
+def calculate_object_lengths(object):
+    bounding_box = cmds.exactWorldBoundingBox(object)
+    object_lengths = []
+    for min_val, max_val in zip(bounding_box[:3], bounding_box[3:]):
+        object_lengths.append(abs(max_val - min_val))
+    # object_lengths = [width, height, depth]
+    return object_lengths
 
-def calculate_object_length(obj):
-    bb = cmds.exactWorldBoundingBox(obj)
-    obj_length = [None, None, None]
-    for i, (min_val, max_val) in enumerate(zip(bb[:3], bb[3:])):
-        obj_length[i] = calc_length(min_val, max_val)
-    return obj_length
+def get_scale_values(object):
+    scale_values = (
+        cmds.getAttr('{}.scaleX'.format(object)),
+        cmds.getAttr('{}.scaleY'.format(object)),
+        cmds.getAttr('{}.scaleZ'.format(object))
+    )
+    return scale_values
+
+def set_scale_value(object, axis, value=1.00):
+    cmds.setAttr('{}.scale{}'.format(object, axis.upper()), value)
+
+def scale(base_axis, length_value):
+    axes = ["x", "y", "z"]
+    axes_mapping = {"x": 0, "y": 1, "z": 2}
+    objects = cmds.ls(selection=True, long=True)
+
+    object_lengths_list = []
+    for object in objects:
+        object_lengths_list.append(calculate_object_lengths(object))
+
+    magnifications = []
+    for i in range(len(objects)):
+        object_lengths = object_lengths_list[i]
+        magnifications.append(length_value / object_lengths[axes_mapping[base_axis]])
+
+    for i, object, magnification in enumerate(zip(objects, magnifications)):
+        scale_values = get_scale_values(object)
+        for axis, value in zip(axes, scale_values):
+            set_scale_value(object, axis, value * magnification)
+
+    print('"{0}" axis width is now "{1}" cm.'.format(base_axis.upper(), length_value))
