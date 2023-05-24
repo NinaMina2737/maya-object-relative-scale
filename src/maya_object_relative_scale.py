@@ -69,7 +69,7 @@ def execute(base_axis, length_value):
         # Close the undo chunk
         cmds.undoInfo(closeChunk=True)
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # Execute the script
     execute(base_axis="x", length_value=1.00)
 
